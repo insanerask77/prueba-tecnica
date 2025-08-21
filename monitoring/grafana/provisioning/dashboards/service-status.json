@@ -68,8 +68,8 @@
             "type": "prometheus",
             "uid": "prometheus_ds_uid"
           },
-          "expr": "sum(increase(http_requests_latency_seconds_count{job=\"fastapi-app\"}[1m])) by (status_code)",
-          "legendFormat": "{{status_code}}",
+          "expr": "sum by (status) (rate(http_requests_total[1m])) * 60",
+          "legendFormat": "{{status}}",
           "refId": "A"
         }
       ],
