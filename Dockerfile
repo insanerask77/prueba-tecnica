@@ -32,17 +32,24 @@ FROM base as final
 
 # Create a non-root user for security
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
-USER appuser
-
-WORKDIR /home/appuser/app
 
 # Copy the virtual environment with dependencies from the builder stage
-COPY --from=builder /opt/venv ./.venv
+# The venv is copied to the same path as in the builder stage to ensure it remains valid.
+COPY --from=builder /opt/venv /opt/venv
+
 # Copy the application code
+WORKDIR /home/appuser/app
 COPY --chown=appuser:appgroup src/ ./src
 
-# Set the PATH to include the venv
-ENV PATH="/home/appuser/app/.venv/bin:$PATH"
+# Grant ownership of the venv to the appuser
+# This is done as root before switching to the appuser.
+RUN chown -R appuser:appgroup /opt/venv
+
+# Switch to the non-root user
+USER appuser
+
+# Set the PATH to include the venv's bin directory
+ENV PATH="/opt/venv/bin:$PATH"
 
 # Expose the port the app runs on
 EXPOSE 8000
