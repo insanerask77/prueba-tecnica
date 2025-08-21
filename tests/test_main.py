@@ -1,15 +1,15 @@
-import pytest
-from httpx import AsyncClient
-from unittest.mock import patch
-
-# Import the FastAPI app instance
-# Make sure the `src` directory is in the Python path.
-# In a real CI setup, you'd configure PYTHONPATH or install the package.
 import sys
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+from httpx import AsyncClient
+
+# Make sure the `src` directory is in the Python path for imports.
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.main import app, HTTP_STATUS_CODES
+from src.main import app, HTTP_STATUS_CODES  # noqa: E402
+
 
 @pytest.mark.asyncio
 async def test_health_check():
@@ -18,6 +18,7 @@ async def test_health_check():
         response = await ac.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
 
 @pytest.mark.asyncio
 @patch('random.choice')
@@ -34,6 +35,7 @@ async def test_root_success(mock_choice):
     # Verify that random.choice was called with the correct list of codes
     mock_choice.assert_called_once_with(HTTP_STATUS_CODES)
 
+
 @pytest.mark.asyncio
 @patch('random.choice')
 async def test_root_server_error(mock_choice):
@@ -45,12 +47,10 @@ async def test_root_server_error(mock_choice):
         response = await ac.get("/")
 
     assert response.status_code == 500
-    # The body might contain a default error message from FastAPI.
-    # We are primarily concerned with the status code.
-    # For a 500 error, the JSON body might not be {"message": "Internal Server Error"}
-    # depending on FastAPI version, so we just check the code.
-
+    # For a 500 error, we only check the status code, not the body,
+    # as the error message can vary depending on the FastAPI version.
     mock_choice.assert_called_once_with(HTTP_STATUS_CODES)
+
 
 @pytest.mark.asyncio
 @patch('random.choice')

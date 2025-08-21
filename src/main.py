@@ -1,12 +1,13 @@
 import random
 from fastapi import FastAPI, Response
-from prometheus_fastapi_instrumentator import Instrumentator, metrics
+from prometheus_fastapi_instrumentator import Instrumentator
 
 # --- Constants ---
+# Add more 200s to make it the most frequent status code.
 HTTP_STATUS_CODES = [
     200, 200, 200, 200, 200, 200, 200,  # 70% chance of success
-    400, 404, 422,                        # Client errors
-    500, 502, 503                          # Server errors
+    400, 404, 422,  # Bad requests
+    500, 502, 503  # Server errors
 ]
 
 # --- Application Setup ---
@@ -16,40 +17,34 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# --- Instrumentator with custom labels ---
-instrumentator = Instrumentator()
-
-# Track latency with exact HTTP status codes as a label
-instrumentator.add(
-    metrics.latency(
-        metric_name="http_request_duration_seconds",
-        labels={"status_code": lambda r: str(r.status_code)}
-    )
-)
-
-# Track total requests with exact status code
-instrumentator.add(
-    metrics.requests(
-        metric_name="http_requests_total",
-        labels={"status_code": lambda r: str(r.status_code)}
-    )
-)
-
-# Track request/response size
-instrumentator.add(metrics.request_size())
-instrumentator.add(metrics.response_size())
-
-# Expose metrics at /metrics
-instrumentator.instrument(app).expose(app)
+# Instrument the app with Prometheus metrics
+# This exposes a /metrics endpoint automatically
+Instrumentator().instrument(app).expose(app)
 
 
 # --- API Endpoints ---
 @app.get("/", summary="Root endpoint with random status codes")
 def get_root(response: Response):
+    """
+    This endpoint returns a "Hello world" message with a 200 OK status code,
+    or randomly returns a 4xx or 5xx HTTP error status code.
+    """
     status_code = random.choice(HTTP_STATUS_CODES)
     response.status_code = status_code
-    return {"message": "Hello world"} if status_code == 200 else {}
+
+    if status_code == 200:
+        return {"message": "Hello world"}
+    else:
+        # For non-200 responses, FastAPI sends a default message
+        # corresponding to the status code. We return an empty dict
+        # to avoid overriding it with a success-oriented payload.
+        return {}
+
 
 @app.get("/health", summary="Health check endpoint")
 def get_health():
+    """
+    A simple health check endpoint that always returns 200 OK.
+    Useful for liveness probes in container orchestrators.
+    """
     return {"status": "ok"}
